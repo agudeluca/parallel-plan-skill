@@ -26,8 +26,9 @@ Bad fits (the skill will say so and propose a sequential plan instead):
 2. **Map the work** — survey files, modules, layers, and natural boundaries.
 3. **Decompose** — split into 2–6 sub-plans, each with scope, files, context, steps, and acceptance criteria.
 4. **Verify independence** — build a file-to-sub-plan table. If any file appears in 2+ sub-plans, the decomposition is broken.
-5. **Present the meta-plan** — overview, prerequisites, parallel sub-plans, independence check, convergence steps.
-6. **Offer to execute** — on confirmation, spawn N agents in a single message via the `Agent` tool.
+5. **Write plan files to disk** — persist `meta.md` + `sub-plan-N.md` to `.claude/plans/<timestamp>-<slug>/` in the repo. Each sub-plan file is self-contained so a fresh agent can be pointed at it by path.
+6. **Present a brief summary** — chat shows overview + sub-plan list with file paths + independence table, not the full body of each sub-plan (the files on disk are the source of truth).
+7. **Offer to execute** — on confirmation, spawn N agents in a single message via the `Agent` tool, each pointed at its sub-plan file.
 
 ## Core invariants
 

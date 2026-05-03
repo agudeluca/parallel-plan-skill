@@ -84,9 +84,22 @@ Before presenting the meta-plan, **explicitly verify** the invariants:
 - Check for implicit shared state: shared types, shared exports, shared constants, shared migrations, shared feature flags. If two sub-plans both add a key to the same enum or both export from the same barrel file, that is a conflict.
 - If you find conflicts you cannot eliminate, either (a) extract the shared piece into a **prerequisite step** to run sequentially before the parallel fan-out, or (b) accept that the work isn't fully parallelizable and split into phases.
 
-### 5. Present the meta-plan
+### 5. Write the plan files to disk
 
-Output in this structure:
+Persist the meta-plan and each sub-plan as their own `.md` files **before** presenting anything in chat. Fresh agents will be pointed at these files by path, so they must exist on disk and be self-contained.
+
+**Location:** `<repo-root>/.claude/plans/<YYYYMMDD-HHMM>-<task-slug>/` in the user's current working directory.
+
+- `<task-slug>` is a kebab-case 2–4 word summary of the task (e.g. `tests-uncovered-modules`, `migrate-auth-middleware`).
+- Use the user's current local time for the timestamp.
+- If `.claude/plans/` does not yet exist, create it. The first time you create this directory, suggest the user add `.claude/plans/` to `.gitignore` (do not edit `.gitignore` yourself unless the user agrees).
+
+**Files to write:**
+
+- `meta.md` — the wrapper: overview, prerequisites, independence check table, convergence steps, and a list of sub-plan files with one-line summaries.
+- `sub-plan-1.md`, `sub-plan-2.md`, … — one file per sub-plan, containing the sub-plan body **verbatim** as defined in Step 3. Each file must stand alone: a fresh agent reading only this file must have everything it needs (scope, files, context, steps, acceptance criteria).
+
+**`meta.md` structure:**
 
 ```markdown
 # Parallel Plan: <task title>
@@ -97,8 +110,10 @@ Output in this structure:
 ## Prerequisites (sequential, if any)
 <steps that must happen before fan-out, or "none">
 
-## Parallel sub-plans
-<the N sub-plans, each self-contained as defined above>
+## Sub-plans
+- [Sub-plan 1: <title>](./sub-plan-1.md) — <one-line summary>
+- [Sub-plan 2: <title>](./sub-plan-2.md) — <one-line summary>
+- ...
 
 ## Independence check
 | File / resource | Sub-plan(s) touching it |
@@ -108,19 +123,31 @@ Output in this structure:
 
 ## Convergence (sequential, if any)
 <steps that must happen after all sub-plans finish: integration tests, final wiring, release notes — or "none">
-
-## Execution
-Spawn N agents in parallel via the Agent tool, one per sub-plan, in a single message.
-Each agent's prompt is the sub-plan body verbatim (it is already self-contained).
 ```
 
-### 6. Offer to execute
+### 6. Present the meta-plan summary
 
-After presenting the plan, ask the user:
+In chat, give the user a **brief** summary, not a full dump (the files on disk are the source of truth):
 
-> Quieres que lance los N agentes en paralelo ahora, o prefieres revisar el plan primero?
+- One-paragraph overview.
+- Bulleted list of sub-plans with their one-line summaries and file paths.
+- The independence-check table (always — it's the verification artifact).
+- Prerequisites and convergence, if any.
+- The directory where everything was written.
 
-If they say yes, spawn all sub-plan agents in **one message** with multiple `Agent` tool calls (parallel execution). Use `subagent_type: "general-purpose"` unless a more specific agent fits. Use `isolation: "worktree"` only if the user asked for it or if the changes are large enough to warrant isolation.
+Do not paste the full body of each sub-plan into chat — point at the file instead.
+
+### 7. Offer to execute
+
+After the summary, ask the user:
+
+> Quieres que lance los N agentes en paralelo ahora, o prefieres revisar los archivos en `.claude/plans/<dir>/` primero?
+
+If they say yes, spawn all sub-plan agents in **one message** with multiple `Agent` tool calls (parallel execution). Each agent's prompt should be:
+
+> Read `.claude/plans/<dir>/sub-plan-N.md` and execute it. The file is self-contained — follow its scope, steps, and acceptance criteria. Do not modify files outside its declared scope.
+
+Use `subagent_type: "general-purpose"` unless a more specific agent fits. Use `isolation: "worktree"` only if the user asked for it or if the changes are large enough to warrant isolation.
 
 ## Anti-patterns (do not do these)
 
@@ -129,6 +156,7 @@ If they say yes, spawn all sub-plan agents in **one message** with multiple `Age
 - **Vague sub-plans.** "Refactor the auth module" is not a sub-plan. "Replace `useOldAuth` with `useNewAuth` in these 7 files, update the import in each, run the auth tests" is.
 - **Hidden context.** Writing sub-plans that reference "the plan above" or "as discussed" — fresh agents have no such context.
 - **Skipping the independence table.** It's the single most important verification step. Always include it.
+- **Dumping the full plan into chat instead of writing files.** Fresh agents can't be reliably handed inline content from the conversation — they need a path to read. Always write `.md` files to `.claude/plans/<dir>/` first.
 
 ## Output language
 
